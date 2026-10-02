@@ -73,12 +73,28 @@ ld_raw <- read_excel(law_dome_file,
 
 sp_monthly_file <- "data/monthly_flask_c13_spo.csv"
 # year range 1977-2024
+#https://scrippsco2.ucsd.edu/data/atmospheric-co2-data/sampling-station-records/south-pole/
 #C. D. Keeling, S. C. Piper, R. B. Bacastow, M. Wahlen, T. P. Whorf, M. Heimann, and H. A. Meijer, 
 #Exchanges of atmospheric CO2 and 13CO2 with the terrestrial biosphere and oceans from 1978 to 2000. I. 
 #Global aspects, SIO Reference Series, No. 01-06, Scripps Institution of Oceanography, San Diego, 88 pages, 2001.
 
 #south pole monthly flask data
 sp_raw <- read_csv(sp_monthly_file,
+                   skip = 58,
+                   show_col_types = FALSE
+)
+
+
+ml_monthly_file <-"data/monthly_flask_c13_mlo.csv"
+# year range 1980-2024
+# https://scrippsco2.ucsd.edu/data/atmospheric-co2-data/sampling-station-records/mauna-loa-observatory-hawaii/
+# C. D. Keeling, S. C. Piper, R. B. Bacastow, M. Wahlen, T. P. Whorf, M. Heimann, and  H. A. Meijer, 
+#Exchanges of atmospheric CO2 and 13CO2 with the terrestrial biosphere and  oceans from 1978 to 2000.  
+#I. Global aspects, SIO Reference Series, No. 01-06, Scripps  Institution of Oceanography, San Diego, 
+#88 pages, 2001.     
+
+#mauna loa monthly flask data
+ml_raw <- read_csv(ml_monthly_file,
                    skip = 58,
                    show_col_types = FALSE
 )
@@ -233,8 +249,8 @@ age_yof <- ind_raw %>%                                      #age_YOF will be use
 
 #suess data prep
 
-# Note: d13C data from law dome represents annual spline values whereas the d13C data from the south pole represents
-# monthly observations converted to annual mean values. 
+# Note: d13C data from law dome represents annual spline values whereas the d13C data from the south pole and mauna 
+# loa represent monthly observations converted to annual mean values. 
 
 #law dome: select required columns. Already annual values.
 ld_d13C <- ld_raw %>%
@@ -243,7 +259,7 @@ ld_d13C <- ld_raw %>%
             source = "Law Dome") %>%
   filter(!is.na(year),
          !is.na(d13C_atm),
-         year <= 1976                     #1976 because south pole data starts at 1977
+         year <= 1979                     #1979 because mauna loa data starts at 1980
   )
 
 
@@ -264,16 +280,32 @@ sp_annual <- sp_raw %>%
 
 
 
+#mauna loa flask: select required columns. Given in monthly values so must calculate annual averages.
+ml_annual <- ml_raw %>%
+  transmute(year = as.integer(Yr),
+            d13C_monthly = as.numeric(`13C filled per-mil`))%>%
+  filter(!is.na(year),
+         !is.na(d13C_monthly))%>%
+  group_by(year)%>%
+  summarise(d13C_atm = mean(d13C_monthly, na.rm = TRUE),
+            n_months = n(),
+            .groups = "drop")%>%
+  mutate(source = "Mauna Loa flask")
 
 
-#combine to get continuous atmospheric record for FINDEM YOF
+#Law dome and SP combine to get continuous atmospheric record for FINDEM YOF
+#atmos_d13C_merge <- bind_rows(ld_d13C,
+ #                             sp_annual) %>%
+  #arrange(year)%>%
+  #filter(year <= 2024
+   #      )
+
+#Law dome and ML combine to get continuous atmospheric record for FINDEM YOF
 atmos_d13C_merge <- bind_rows(ld_d13C,
-                              sp_annual) %>%
+                              ml_annual) %>%
   arrange(year)%>%
   filter(year <= 2024
-         )
-
-
+  )
 
 
 #assign atmospheric d13C value to estimated YOF
@@ -408,6 +440,10 @@ y_max_p1 <- max(p1_data$mean_d13C, na.rm = TRUE
 y_n_p1 <- y_min_p1 - 1.3
 
 
+
+
+
+  
 # plot1
 p1 <- ggplot(p1_data,
              aes(x = age_group_plot,
@@ -445,11 +481,11 @@ p1 <- ggplot(p1_data,
              color = "black"
              ) +
   annotate("text",                  #add statistical values to plot
-           x = 2.03,
+           x = 1.5,
            y = y_max_p1 + 0.7,
            label = p1_label,
            parse = FALSE,
-           hjust = 0,
+           hjust = 0.5,
            size = 2.7,
            fontface = "bold"
            ) +
@@ -472,6 +508,7 @@ p1 <- ggplot(p1_data,
   guides(fill = "none",
          color = "none"
          ) +
+  coord_cartesian(ylim = c(-16, -3)) +
   present_theme
 
 p1
@@ -487,6 +524,110 @@ ggsave(filename = file.path("outputs", "p1_present.png"),
 
 
 
+
+
+
+
+
+
+#possible color palette for age spectrum
+#age_fill <- c("70–74" = "chocolate4",
+ #             "65–69" = "chocolate3",
+  #            "60–64" = "chocolate2",
+   #           "55–59" = "darkorange2",
+    #          "50–54" = "darkorange1",
+     #        "40–44" = "goldenrod2",
+      #        "35–39" = "goldenrod1",
+       #       "30–34" = "gold1",
+        #      "25–29" = "khaki1",
+         #     "18–24" = "lemonchiffon"
+#)
+
+#age_color <- c("70–74" = "saddlebrown",
+ #              "65–69" = "chocolate4",
+  #             "60–64" = "chocolate3",
+   #            "55–59" = "darkorange4",
+    #           "50–54" = "darkorange3",
+     #          "45–49" = "darkorange2",
+      #         "40–44" = "darkgoldenrod4",
+       #        "35–39" = "darkgoldenrod3",
+        #       "30–34" = "darkgoldenrod2",
+         #      "25–29" = "goldenrod3",
+          #     "18–24" = "goldenrod2"
+#)
+
+
+
+
+
+#p1a <- ggplot(p1_data,
+ #            aes(x = age_group_plot,
+  #               y = mean_d13C)
+#) +
+ # geom_violin(aes(fill = age_group_plot,
+  #            color = age_group_plot),
+   #           trim = FALSE,
+    #          scale = "width",
+     #         alpha = 0.40
+  #) +
+  #ggforce::geom_sina(aes(color = age_group_plot),
+   #                  size = 1.5,
+    #                 alpha = 0.50,
+     #                maxwidth = 0.70,
+      #               seed = 42
+  #) +
+  #geom_boxplot(width = 0.13,
+   #            outlier.shape = NA,
+    #           fill = "white",
+     #          color = "grey20",
+      #         linewidth = 0.55,
+       #        alpha = 0.5
+  #) +
+  #geom_point(data = p1_summary,
+   #          aes(x = age_group_plot,
+    #             y = mean_d13C_group,
+     #            shape = "Group mean"),
+      #       inherit.aes = FALSE,
+       #      alpha = 0.3,
+        #     shape = 23,
+         #    size = 3.2,
+          #   stroke = 0.7,
+           #  fill = "white",
+            # color = "black"
+  #) +
+  #annotate("text",                  #add statistical values to plot
+   #        x = 1.5,
+    #       y = y_max_p1 + 0.7,
+     #      label = p1_label,
+      #     parse = FALSE,
+       #    hjust = 0.5,
+        #   size = 2.7,
+         #  fontface = "bold"
+  #) +
+  #geom_text(data = p1_summary,                                    #number of participants in each age group
+   #         aes(x = age_group_plot,
+    #            y = y_n_p1,
+     #           label = paste0("n = ", n_participants)),
+      #      inherit.aes = FALSE,
+       #     size = 3.2,
+        #    fontface = "bold",
+         #   color = "black"
+  #) +
+  #labs(title = "\nEnamel δ¹³C by Participant Age\n  ",
+   #    x = "\nParticipant Age Range",
+    #   y = expression(delta^{13}*C[enamel]~("\u2030"))
+  #) +
+  #guides(fill = "none",
+   #      color = "none"
+  #) +
+  #coord_cartesian(ylim = c(-16, -3)) +
+  #scale_fill_manual(values = age_fill
+  #) +
+  #scale_color_manual(values = age_color
+  #) +
+  #present_theme
+
+#p1a
 #--------------------------------------------------------------------------------------------------------------------
 
 
@@ -497,23 +638,23 @@ ggsave(filename = file.path("outputs", "p1_present.png"),
 # WITH ATMOSPHERIC d13C CURVE
 #-----------------------------------------------------------------------------------------------------------------------
 #2. d13C vs. enamel formation age, w/ d13Catm curve overlaid
-#p2_1 uses YOF, p2_2 uses 5-year YOF bins for violins
+#p2a uses YOF, p2b uses 5-year YOF bins for violins
 
-#p2_1 data
-p2_1_data <- present_pid %>%
+#p2a data
+p2a_data <- present_pid %>%
   filter(!is.na(YOF_year),
          !is.na(mean_d13C)
          )
 
 #limit atmospheric curve to YOF range
-p2_1_atmos <- atmos_d13C_merge %>%
-  filter(year >= min(p2_1_data$YOF_year, na.rm = TRUE),
-         year <= max(p2_1_data$YOF_year, na.rm = TRUE)
+p2a_atmos <- atmos_d13C_merge %>%
+  filter(year >= min(p2a_data$YOF_year, na.rm = TRUE),
+         year <= max(p2a_data$YOF_year, na.rm = TRUE)
          )
 
 # Figure 2 colors
 p2_colors <- c("Law Dome" = "dodgerblue3",
-               "South Pole flask" = "red4",
+               "Mauna Loa flask" = "red4",
                "Participant enamel" = "turquoise4"
                )
 
@@ -550,15 +691,17 @@ p2_label <- paste0("R² = ", round(p2_r2, 2),
                           digits = 3)
                    )
 
-p2_1 <- ggplot() +
-  geom_line(data = p2_1_atmos,            #suess curve d13C
+
+#plot 2 option 1
+p2a <- ggplot() +
+  geom_line(data = p2a_atmos,            #suess curve d13C
             aes(x = year,
                 y = d13C_atm,
                 color = source
                 ),
             linewidth = 1.2
             ) +
-  geom_point(data = p2_1_data,                    #enamel d13C
+  geom_point(data = p2a_data,                    #enamel d13C
              aes(x = YOF_year,
                  y = mean_d13C,
                  color = "Participant enamel"),
@@ -579,9 +722,9 @@ p2_1 <- ggplot() +
   scale_color_manual(name = NULL,
                      values = p2_colors,
                      breaks = c("Law Dome",
-                                "South Pole flask"),
+                                "Mauna Loa flask"),
                      labels = c("Law Dome atmospheric δ¹³C          ",
-                                "South Pole atmospheric δ¹³C")
+                                "Mauna Loa atmospheric δ¹³C")
                      ) +
   labs(title = "\nEnamel and Atmospheric δ¹³C Through Time\n  ",
        x = "\nEstimated year of enamel formation",
@@ -590,55 +733,69 @@ p2_1 <- ggplot() +
   present_theme
 
 
-p2_1
+p2a
 
 
-#p2_2 data with 5-year bins for violin
-p2_2_data <- present_pid %>%
+
+
+#p2b data with 5-year bins for violin
+p2b_data <- present_pid %>%
   filter(!is.na(YOF_year),
          !is.na(mean_d13C)) %>%
   mutate(YOF_5yr = floor(YOF_year / 5) * 5)
 
-p2_2_atmos <- atmos_d13C_merge %>%
-  filter(year >= min(p2_2_data$YOF_5yr, na.rm = TRUE) - 4,
-         year <= max(p2_2_data$YOF_5yr, na.rm = TRUE) + 4
+p2b_atmos <- atmos_d13C_merge %>%
+  filter(year >= min(p2b_data$YOF_5yr, na.rm = TRUE) - 4,
+         year <= max(p2b_data$YOF_5yr, na.rm = TRUE) + 4
          )
 
-p2_2 <- ggplot() +
-  geom_line(data = p2_2_atmos,             #suess curve d13C
+#summary stats for 5-year YOF groups
+p2b_summary <- p2b_data %>%
+  group_by(YOF_5yr) %>%
+  summarise(n_participants = n(),
+            mean_d13C_group = mean(mean_d13C, na.rm = TRUE),
+            .groups = "drop"
+            )
+
+
+
+
+#plot 2 option 2
+p2b <- ggplot() +
+  geom_line(data = p2b_atmos,             #suess curve d13C
             aes(x = year,
                 y = d13C_atm,
                 color = source),
             linewidth = 1.2
             ) +
-  geom_violin(data = p2_2_data,               #enamel d13C by 5-year YOF group
+  geom_violin(data = p2b_data,               #enamel d13C by 5-year YOF group
               aes(x = YOF_5yr,
                   y = mean_d13C,
                   group = YOF_5yr),
-              fill = "turquoise4",
-              color = "grey30",
+              fill = "turquoise3",
+              color = "turquoise4",
               alpha = 0.40,
               trim = FALSE,
               scale = "width",
               width = 4
               ) +
-  ggforce::geom_sina(data = p2_2_data,             #individual participants
+  ggforce::geom_sina(data = p2b_data,             #individual participants
                      aes(x = YOF_5yr,
                          y = mean_d13C,
                          group = YOF_5yr),
                      color = "turquoise4",
                      size = 1.5,
-                     alpha = 0.55,
+                     alpha = 0.50,
                      maxwidth = 1.5,
                      seed = 42
                      ) +
   scale_x_continuous(
-    breaks = sort(unique(p2_2_data$YOF_5yr)),
-    labels = sort(unique(p2_2_data$YOF_5yr))
+    breaks = sort(unique(p2b_data$YOF_5yr)),
+    labels = sort(unique(p2b_data$YOF_5yr))
   ) +
   annotate("text",
            x = 1960.5,
-           y = -2,
+           y = -5,
            label = p2_label,
            hjust = 0,
            vjust = 1,
@@ -649,26 +806,29 @@ p2_2 <- ggplot() +
                      values = p2_colors,
                      breaks = c(
                        "Law Dome",
-                       "South Pole flask"),
+                       "Mauna Loa flask"),
                      labels = c("Law Dome atmospheric δ¹³C        ",
-                                "South Pole atmospheric δ¹³C")
+                                "Mauna Loa atmospheric δ¹³C")
                      ) +
   labs(title = "\nEnamel and Atmospheric δ¹³C Through Time\n  ",
        x = "\nEstimated year of enamel formation",
        y = expression(delta^{13}*C~("\u2030"))
        ) +
+  coord_cartesian(ylim = c(-16, -3)) +
   present_theme
 
-p2_2
+p2b
 
 #save p2
 ggsave(filename = file.path("outputs", "p2_present.png"),
-       plot = p2_2,
+       plot = p2b,
        width = 10,
        height = 6,
        units = "in",
        dpi = 300
 )
+
+
 
 #-----------------------------------------------------------------------------------------------------------------------
 #-----------------------------------------------------------------------------------------------------------------------
@@ -715,7 +875,7 @@ y_min_p3 <- min(p3_data$mean_d13C_corrected,
 y_max_p3 <- max(p3_data$mean_d13C_corrected,
                 na.rm = TRUE
                 )
-y_n_p3 <- y_min_p3 - 1.3
+y_n_p3 <- y_min_p3 - 2.7
   
   
   
@@ -745,8 +905,7 @@ p3 <- ggplot(p3_data,
                ) +
   geom_point(data = p3_summary,
              aes(x = age_group_plot,
-                 y = mean_d13C_group,
-                 shape = "Group mean"),
+                 y = mean_d13C_group),
              inherit.aes = FALSE,
              alpha = 0.3,
              shape = 23,
@@ -756,11 +915,11 @@ p3 <- ggplot(p3_data,
              color = "black"
              ) +
   annotate("text",                  #add statistical values to plot
-           x = 2.03,
-           y = y_max_p3 + 0.7,
+           x = 2.5,
+           y = y_max_p3 - 0.7,
            label = p3_label,
            parse = FALSE,
-           hjust = 0,
+           hjust = 0.5,
            size = 2.7,
            fontface = "bold"
            ) +
@@ -784,7 +943,7 @@ p3 <- ggplot(p3_data,
   guides(fill = "none",
          color = "none"
          ) +
-  
+  coord_cartesian(ylim = c(-16, -3)) +
   present_theme
 
 
@@ -845,19 +1004,35 @@ y_n_p4 <- y_min_p4 - 1.3
 
 
 
+#fill colors
+p4_fill <- c("Lower" = "darkolivegreen1",
+             "Lower/Middle" = "darkolivegreen2",
+             "Middle" = "darkolivegreen3",
+             "Middle/Upper" = "darkolivegreen4",
+             "Upper" = "darkolivegreen"
+             )
+
+#outline and dot color
+p4_color <- c("Lower" = "yellow4",
+              "Lower/Middle" = "olivedrab",
+              "Middle" = "palegreen4",
+              "Middle/Upper" = "seagreen4",
+              "Upper" = "darkgreen"
+              )
+
 #plot 4
 p4 <- ggplot(p4_data,
              aes(x = child_ecostatus,
                  y = mean_d13C_corrected)
              ) +
   
-  geom_violin(fill = "turquoise3",
-              color = "turquoise4",
+  geom_violin(aes(fill = child_ecostatus,
+              color = child_ecostatus),
               trim = FALSE,
               scale = "width",
               alpha = 0.40
               ) +
-  ggforce::geom_sina(aes(color = "Individual participant"),
+  ggforce::geom_sina(aes(color = child_ecostatus),
                      size = 1.5,
                      alpha = 0.50,
                      maxwidth = 0.70,
@@ -872,8 +1047,7 @@ p4 <- ggplot(p4_data,
                ) +
   geom_point(data = p4_summary,
              aes(x = child_ecostatus,
-                 y = mean_d13C_group,
-                 shape = "Group mean"),
+                 y = mean_d13C_group),
              inherit.aes = FALSE,
              alpha = 0.3,
              shape = 23,
@@ -883,11 +1057,11 @@ p4 <- ggplot(p4_data,
              color = "black"
              ) +
   annotate("text",
-           x = 1.2,
+           x = 1.5,
            y = y_max_p4 + 0.5,
            label = p4_label,
            parse = FALSE,
-           hjust = 0,
+           hjust = 0.5,
            size = 2.7,
            fontface = "bold"
            ) +
@@ -900,9 +1074,10 @@ p4 <- ggplot(p4_data,
             fontface = "bold",
             color = "black"
   ) +
-  scale_color_manual(name = NULL,
-                     values = c("Individual participant" = "turquoise4")
-  )+
+  scale_fill_manual(values = p4_fill
+  ) +
+  scale_color_manual(values = p4_color
+  ) +
   labs(title = "\nSuess-Corrected Enamel δ¹³C by Childhood Socioeconomic Status\n ",
        x = "\nChildhood socioeconomic status",
        y = expression(delta^{13}*C[enamel-corrected]~("\u2030"))
@@ -930,20 +1105,631 @@ ggsave(filename = file.path("outputs", "p4_present.png"),
 
 #-----------------------------------------------------------------------------------------------------------------------
 #-----------------------------------------------------------------------------------------------------------------------
+#5. d13Ccorr (Suess-corrected) vs. sex at birth (w/ test)
+
+#p5 data
+p5_data <- present_pid %>%
+  filter(!is.na(mean_d13C_corrected),
+         sex %in% c("Female", "Male")) %>%
+  droplevels()
+
+
+#wilcoxon rank-sum test
+p5_wilcox <- wilcox.test(mean_d13C_corrected ~ sex,
+                         data = p5_data,
+                         exact = FALSE
+                         )
+
+p5_wilcox
+
+
+p5_pval <- p5_wilcox$p.value
+
+p5_pval
+
+
+#p5 label
+p5_label <- paste0("Wilcoxon\np = ",
+                   format(p5_pval,
+                          scientific = TRUE,
+                          digits = 3)
+)
+
+
+#summary stats
+p5_summary <- p5_data %>%
+  group_by(sex) %>%
+  summarise(n_participants = n(),
+            mean_d13C_group = mean(mean_d13C_corrected,
+                                   na.rm = TRUE),
+            .groups = "drop"
+            )
+
+
+y_max_p5 <- max(p5_data$mean_d13C_corrected,
+                na.rm = TRUE
+                )
+y_min_p5 <- min(p5_data$mean_d13C_corrected, 
+                na.rm = TRUE
+                )
+y_n_p5 <- y_min_p5 - 1.3
+
+
+
+#fill colors
+p5_fill <- c("Female" = "darkorchid3",
+             "Male" = "dodgerblue3"
+             )
+
+#outline and dot color
+p5_color <- c("Female" = "darkorchid4",
+              "Male" = "dodgerblue4"
+              )
+
+
+#plot 5
+p5 <- ggplot(p5_data,
+             aes(x = sex,
+                 y = mean_d13C_corrected)
+             ) +
+  geom_violin(aes(fill = sex,
+                  color = sex),
+              trim = FALSE,
+              scale = "width",
+              alpha = 0.40
+              ) +
+  ggforce::geom_sina(aes(color = sex),
+                     size = 1.5,
+                     alpha = 0.50,
+                     maxwidth = 0.70,
+                     seed = 42
+                     ) +
+  geom_boxplot(width = 0.13,
+               outlier.shape = NA,
+               fill = "white",
+               color = "grey20",
+               linewidth = 0.5,
+               alpha = 0.50
+               ) +
+  geom_point(data = p5_summary,
+             aes(x = sex,
+                 y = mean_d13C_group,
+                 shape = "Group mean"),
+             inherit.aes = FALSE,
+             alpha = 0.3,
+             shape = 23,
+             size = 3.2,
+             stroke = 0.7,
+             fill = "white",
+             color = "black"
+             ) +
+  annotate("text",
+           x = 0.6,
+           y = y_max_p5 + 0.5,
+           label = p5_label,
+           parse = FALSE,
+           hjust = 0,
+           size = 3,
+           fontface = "bold"
+           ) +
+  geom_text(data = p5_summary,
+            aes(x = sex,
+                y = y_n_p5,
+                label = paste0("n = ", n_participants)),
+            inherit.aes = FALSE,
+            size = 3.2,
+            fontface = "bold",
+            color = "black"
+            ) +
+  scale_fill_manual(values = p5_fill
+                    ) +
+  scale_color_manual(values = p5_color
+                     ) +
+  labs(title = "\nSuess-Corrected Enamel δ¹³C by Sex\n ",
+       x = "\nSex at birth",
+       y = expression(delta^{13}*C[enamel-corrected]~("\u2030"))
+       ) +
+  guides(fill = "none",
+         color = "none"
+         ) +
+  present_theme
+
+
+p5
+
+
+#save p5
+ggsave(filename = file.path("outputs", "p5_present.png"),
+       plot = p5,
+       width = 10,
+       height = 6,
+       units = "in",
+       dpi = 300
+)
 
 
 
 
 
+#-----------------------------------------------------------------------------------------------------------------------
+#-----------------------------------------------------------------------------------------------------------------------
+#6. d13Ccorr (Suess-corrected) vs. ancestry (w/ test)
+
+
+#p6 data
+p6_data <- present_pid %>%
+  filter(!is.na(mean_d13C_corrected),
+         !is.na(ancestry),
+         ancestry != "No answer") %>%
+  droplevels()
+
+
+#Kruskal-Wallis
+p6_kw <- kruskal.test(mean_d13C_corrected ~ ancestry,
+                      data = p6_data
+                      )
+
+p6_kw
+
+
+# Pairwise comparisons
+# BH correction for multiple comparisons
+p6_pairwise <- pairwise.wilcox.test(p6_data$mean_d13C_corrected,
+                                    p6_data$ancestry,
+                                    p.adjust.method = "BH",
+                                    exact = FALSE
+                                    )
+
+p6_pairwise
+
+
+#p6 p-value
+p6_pval <- p6_kw$p.value
+
+p6_label <- paste0("Kruskal-Wallis\n(all groups included)\np = ",
+                   format(p6_pval,
+                          scientific = TRUE,
+                          digits = 3)
+)
+
+
+p6_summary <- p6_data %>%
+  group_by(ancestry) %>%
+  summarise(n_participants = n(),
+            mean_d13C_group = mean(mean_d13C_corrected,
+                                   na.rm = TRUE),
+            .groups = "drop"
+            )
+
+
+
+y_min_p6 <- min(p6_data$mean_d13C, 
+                na.rm = TRUE
+                )
+y_max_p6 <- max(p6_data$mean_d13C_corrected,
+                na.rm = TRUE
+                )
+y_n_p6 <- y_min_p6 - 1.3
+
+
+
+#plot 6
+p6 <- ggplot(p6_data,
+             aes(x = ancestry,
+                 y = mean_d13C_corrected)
+             ) + 
+  geom_violin(fill = "orangered3",
+              color = "orangered4",
+              trim = FALSE,
+              scale = "width",
+              alpha = 0.40
+              ) +
+  ggforce::geom_sina(color = "orangered4",
+                     size = 1.5,
+                     alpha = 0.50,
+                     maxwidth = 0.70,
+                     seed = 42) +
+  geom_boxplot(width = 0.13,
+               outlier.shape = NA,
+               fill = "white",
+               color = "grey20",
+               linewidth = 0.55,
+               alpha = 0.50
+               ) +
+  geom_point(data = p6_summary,
+             aes(x = ancestry,
+                 y = mean_d13C_group),
+             inherit.aes = FALSE,
+             alpha = 0.3,
+             shape = 23,
+             size = 3.2,
+             stroke = 0.7,
+             fill = "white",
+             color = "black"
+             )+
+  annotate("text",
+           x = 1.5,
+           y = y_max_p6 - 0.3,
+           label = p6_label,
+           parse = FALSE,
+           hjust = 0.5,
+           size = 2.5,
+           fontface = "bold"
+           ) +
+  geom_text(data = p6_summary,                                    #number of participants in each ancestry group
+            aes(x = ancestry,
+                y = y_n_p6,
+                label = paste0("n = ", n_participants)),
+            inherit.aes = FALSE,
+            size = 3.2,
+            fontface = "bold",
+            color = "black"
+  ) +
+  labs(title = "\nSuess-Corrected Enamel δ¹³C by Ancestry\n  ",
+       x = "\nAncestry",
+       y = expression(delta^{13}*C[enamel-corrected]~("\u2030"))
+       ) +
+  guides(fill = "none",
+         color = "none"
+         ) +
+  present_theme 
+
+
+p6
+
+
+
+#save p6
+ggsave(filename = file.path("outputs", "p6_present.png"),
+       plot = p6,
+       width = 10,
+       height = 6,
+       units = "in",
+       dpi = 300
+)
+
+#-----------------------------------------------------------------------------------------------------------------------
+#-----------------------------------------------------------------------------------------------------------------------
+#7. d13Ccorr (Suess-corrected) vs. dietary condition (a=lactose, b=allergy; w/ test)
+
+#p7a data
+p7a_data <- present_pid %>%
+  filter(!is.na(mean_d13C_corrected),
+         !is.na(lactose_tolerance)
+         )
+
+#p7a wilcoxon test
+p7a_wilcox <- wilcox.test(mean_d13C_corrected ~ lactose_tolerance,
+                          data = p7a_data,
+                          exact = FALSE
+                          )
+
+p7a_wilcox
+
+
+p7a_pval <- p7a_wilcox$p.value
+
+#p7a label
+p7a_label <- paste0("Wilcoxon\np = ",
+                    format(p7a_pval,
+                           scientific = FALSE,
+                           digits = 3)
+)
+
+
+p7a_summary <- p7a_data %>%
+  group_by(lactose_tolerance) %>%
+  summarise(n_participants = n(),
+            mean_d13C_group = mean(mean_d13C_corrected, 
+                                   na.rm = TRUE),
+            .groups = "drop"
+            )
+
+
+y_max_p7a <- max(p7a_data$mean_d13C_corrected,
+                 na.rm = TRUE
+                 )
+y_min_p7a <- min(p7a_data$mean_d13C_corrected, 
+                na.rm = TRUE
+                )
+y_n_p7a <- y_min_p7a - 1.3
+
+
+
+#fill colors
+p7_fill <- c("No" = "chartreuse4",
+             "Yes" = "chocolate3"
+)
+
+#outline and dot color
+p7_color <- c("No" = "darkolivegreen",
+              "Yes" = "coral4"
+)
+
+
+
+#plot p7a
+p7a <- ggplot(p7a_data,
+              aes(x = lactose_tolerance,
+                  y = mean_d13C_corrected)
+              ) +
+  geom_violin(aes(fill = lactose_tolerance,
+                  color = lactose_tolerance),
+              trim = FALSE,
+              scale = "width",
+              alpha = 0.40
+              ) +
+  ggforce::geom_sina(aes(color = lactose_tolerance),
+                     size = 1.5,
+                     alpha = 0.55,
+                     maxwidth = 0.70,
+                     seed = 42
+                     ) +
+  geom_boxplot(width = 0.13,
+               outlier.shape = NA,
+               fill = "white",
+               color = "grey20",
+               linewidth = 0.5,
+               alpha = 0.50
+               ) +
+  geom_point(data = p7a_summary,
+             aes(x = lactose_tolerance,
+                 y = mean_d13C_group),
+             inherit.aes = FALSE,
+             alpha = 0.3,
+             shape = 23,
+             size = 3.2,
+             stroke = 0.7,
+             fill = "white",
+             color = "black"
+  ) +
+  annotate("text",
+           x = 1.1,
+           y = y_max_p7a + 0.5,
+           label = p7a_label,
+           parse = FALSE,
+           hjust = 0,
+           size = 3,
+           fontface = "bold"
+  ) +
+  geom_text(data = p7a_summary,
+            aes(x = lactose_tolerance,
+                y = y_n_p7a,
+                label = paste0("n = ", n_participants)),
+            inherit.aes = FALSE,
+            size = 3.2,
+            fontface = "bold",
+            color = "black"
+  ) +
+  scale_fill_manual(values = p7_fill
+  ) +
+  scale_color_manual(values = p7_color
+  ) +
+  labs(x = "\nLactose Intolerant",
+       y = expression(delta^{13}*C[enamel-corrected]~("\u2030"))
+       ) +
+  guides(fill = "none",
+         color = "none"
+         ) +
+  present_theme
+
+
+
+p7a
+#-----------------------------------------------------------------------------------------------------------------------
+#-----------------------------------------------------------------------------------------------------------------------
+
+p7b_data <- present_pid %>%
+  filter(!is.na(mean_d13C_corrected),
+         !is.na(food_allergies)
+         )
+
+
+p7b_wilcox <- wilcox.test(mean_d13C_corrected ~ food_allergies,
+                          data = p7b_data,
+                          exact = FALSE
+                          )
+
+p7b_wilcox
+
+
+p7b_pval <- p7b_wilcox$p.value
+
+
+
+p7b_label <- paste0("Wilcoxon\np = ",
+                    format(p7b_pval,
+                           scientific = FALSE,
+                           digits = 3)
+)
+
+
+p7b_summary <- p7b_data %>%
+  group_by(food_allergies) %>%
+  summarise(n_participants = n(),
+            mean_d13C_group = mean(mean_d13C_corrected, na.rm = TRUE),
+            .groups = "drop"
+            )
+
+
+y_max_p7b <- max(p7b_data$mean_d13C_corrected,
+                 na.rm = TRUE
+                 )
+y_min_p7b <- min(p7b_data$mean_d13C_corrected, 
+                 na.rm = TRUE
+)
+y_n_p7b <- y_min_p7b - 1.3
+
+#plot 7b
+p7b <- ggplot(p7b_data,
+              aes(x = food_allergies,
+                  y = mean_d13C_corrected)
+              ) + 
+  geom_violin(aes(fill = food_allergies,
+                  color = food_allergies),
+              trim = FALSE,
+              scale = "width",
+              alpha = 0.40
+              ) +
+  ggforce::geom_sina(aes(color = food_allergies),
+                     size = 1.5,
+                     alpha = 0.55,
+                     maxwidth = 0.70,
+                     seed = 42
+                     ) +
+  geom_boxplot(width = 0.13,
+               outlier.shape = NA,
+               fill = "white",
+               color = "grey20",
+               linewidth = 0.5,
+               alpha = 0.80
+               ) +
+  geom_point(data = p7b_summary,
+             aes(x = food_allergies,
+                 y = mean_d13C_group),
+             inherit.aes = FALSE,
+             alpha = 0.3,
+             shape = 23,
+             size = 3.2,
+             stroke = 0.7,
+             fill = "white",
+             color = "black"
+  ) +
+  annotate("text",
+           x = 1.1,
+           y = y_max_p7b + 0.5,
+           label = p7b_label,
+           parse = FALSE,
+           hjust = 0,
+           size = 3,
+           fontface = "bold"
+           ) +
+  geom_text(data = p7b_summary,
+            aes(x = food_allergies,
+                y = y_n_p7b,
+                label = paste0("n = ", n_participants)),
+            inherit.aes = FALSE,
+            size = 3.2,
+            fontface = "bold",
+            color = "black"
+  ) +
+  scale_fill_manual(values = p7_fill
+  ) +
+  scale_color_manual(values = p7_color
+  ) +
+  labs(x = "\nFood Allergies",
+       y = NULL
+       ) +
+  guides(fill = "none",
+         color = "none"
+         ) +
+  present_theme
+
+
+p7b
+
+
+
+
+# Combine dietary plots
+
+p7 <- p7a + p7b +
+  plot_annotation(
+    title = "\nSuess-Corrected Enamel δ¹³C by Dietary Condition\n "
+  )
+
+
+p7
+
+
+
+#save p7
+ggsave(filename = file.path("outputs", "p7_present.png"),
+       plot = p7,
+       width = 10,
+       height = 6,
+       units = "in",
+       dpi = 300
+)
+#-----------------------------------------------------------------------------------------------------------------------
+#-----------------------------------------------------------------------------------------------------------------------
+#8. d13Ccorr map (by state)
+
+#p8 summary stats
+state_d13C_corrected <- present_pid %>%
+  select(participant_id,
+         mean_d13C_corrected) %>%
+  inner_join(res_longest %>%
+      select(participant_id,
+             state),
+      by = "participant_id") %>%
+  filter(!is.na(mean_d13C_corrected),
+         !is.na(state),
+         !state %in% c("Puerto Rico",
+                       "Guam",
+                       "PR",
+                       "GU")) %>%
+  group_by(state) %>%
+  summarise(state_mean_d13C = mean(mean_d13C_corrected, na.rm = TRUE),
+            n_participants = n(),
+            .groups = "drop") %>%
+  mutate(state_mean_d13C = if_else(n_participants >= 3,   #at least 3 participants per state
+                                   state_mean_d13C,
+                                   NA_real_)
+         )
+
+
+#plot p8
+p8 <- plot_usmap(data = state_d13C_corrected,
+                 values = "state_mean_d13C",
+                 color = "black",
+                 linewidth = 0.3,
+                 labels = FALSE
+                 ) +
+  scale_fill_gradientn(colors = c("wheat2",
+                                  "tan",
+                                  "goldenrod",
+                                  "darkorange3",
+                                  "chocolate",
+                                  "brown4"),
+                       na.value = "grey50",
+                       name = "Mean corrected δ¹³C (‰)",
+                       guide = guide_colorbar(barwidth = 12,
+                                              barheight = 0.8,
+                                              title.position = "top",
+                                              title.hjust = 0.5)
+                       ) +
+  labs(title = "\nMean Suess-Corrected Enamel δ¹³C by State of Longest Residence",
+       subtitle = "Grey = insufficient data"
+       ) +
+  theme(plot.title = element_text(face = "bold",
+                                  size = 14,
+                                  hjust = 0.5),
+        plot.subtitle = element_text(size = 10,
+                                     color = "grey40",
+                                     hjust = 0.5),
+        legend.position = "bottom",
+        legend.direction = "horizontal"
+        )
+
+
+p8
 
 
 
 
 
+#save p8
+ggsave(filename = file.path("outputs", "p8_present.png"),
+       plot = p8,
+       width = 10,
+       height = 6,
+       units = "in",
+       dpi = 300
+)
 
 
 
-#---------------------------------------------------------------------------------------------------------------------
 
 
 
