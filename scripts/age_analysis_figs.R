@@ -105,8 +105,9 @@ demographic_data <- iso_pid %>%
 
 #prep data
 age_data <- demographic_data %>%
-  filter(!is.na(mean_d13C), !is.na(age_group)
-  )
+  filter(!is.na(mean_d13C), 
+         !is.na(age_group)
+         )
 
 #summary stats by age group
 age_summary <- age_data %>%

@@ -144,7 +144,9 @@ ind_num <- ind_raw %>%
 #-------------------------------------------------------------------------------------------------------------------
 
 # 1) Calculate year of enamel formation (YOF) for each sample (5 year window) 
+
 #Note: the first age range of 18-25 represents a 7-year period whereas the rest of the age ranges represent 5-year
+
 age_yof <- ind_raw %>%                                      #age_YOF will be used to associate sample with suess data
   transmute(participant_id,
             age_range = as.numeric(age_range),                     #convert age range to numeric
@@ -182,6 +184,7 @@ age_yof <- ind_raw %>%                                      #age_YOF will be use
 
 
 # 2) Estimate d13C atmospheric for YOF using seuss effect data. Use annual average value for each YOF.
+
 # Note: d13C data from law dome represents annual spline values whereas the d13C data from the south pole represents
 # monthly observations converted to annual mean values. 
 

@@ -209,7 +209,7 @@ res_longest <- res %>%
 
 
 #YOF prep
-#Note: the first age range of 18-25 represents a 7-year period whereas the rest of the age ranges represent 5-year
+#Note: the first age range of 18-24 represents a 7-year period whereas the rest of the age ranges represent 5-year
 
 age_yof <- ind_raw %>%                                      #age_YOF will be used to associate sample with suess data
   transmute(participant_id,
@@ -470,8 +470,7 @@ p1 <- ggplot(p1_data,
                ) +
   geom_point(data = p1_summary,
              aes(x = age_group_plot,
-                 y = mean_d13C_group,
-                 shape = "Group mean"),
+                 y = mean_d13C_group),
              inherit.aes = FALSE,
              alpha = 0.3,
              shape = 23,
@@ -1193,8 +1192,7 @@ p5 <- ggplot(p5_data,
                ) +
   geom_point(data = p5_summary,
              aes(x = sex,
-                 y = mean_d13C_group,
-                 shape = "Group mean"),
+                 y = mean_d13C_group),
              inherit.aes = FALSE,
              alpha = 0.3,
              shape = 23,
@@ -1303,7 +1301,7 @@ p6_summary <- p6_data %>%
 
 
 
-y_min_p6 <- min(p6_data$mean_d13C, 
+y_min_p6 <- min(p6_data$mean_d13C_corrected, 
                 na.rm = TRUE
                 )
 y_max_p6 <- max(p6_data$mean_d13C_corrected,
@@ -1398,7 +1396,7 @@ p7a_data <- present_pid %>%
          !is.na(lactose_tolerance)
          )
 
-#p7a wilcoxon test
+#p7a wilcoxon rank-sum test
 p7a_wilcox <- wilcox.test(mean_d13C_corrected ~ lactose_tolerance,
                           data = p7a_data,
                           exact = FALSE
@@ -1582,7 +1580,7 @@ p7b <- ggplot(p7b_data,
                fill = "white",
                color = "grey20",
                linewidth = 0.5,
-               alpha = 0.80
+               alpha = 0.50
                ) +
   geom_point(data = p7b_summary,
              aes(x = food_allergies,
@@ -1666,9 +1664,7 @@ state_d13C_corrected <- present_pid %>%
   filter(!is.na(mean_d13C_corrected),
          !is.na(state),
          !state %in% c("Puerto Rico",
-                       "Guam",
-                       "PR",
-                       "GU")) %>%
+                       "Guam")) %>%
   group_by(state) %>%
   summarise(state_mean_d13C = mean(mean_d13C_corrected, na.rm = TRUE),
             n_participants = n(),
