@@ -240,7 +240,7 @@ age_yof <- ind_raw %>%                                      #age_YOF will be use
                                 TRUE ~ NA_real_)) %>%
   mutate(age_mean = (age_min + age_max) / 2,                           #calculate mean age
          YOB = 2025 - age_mean,                                      # calculate YOB: Year of birth
-         YOF = YOB + 10,                                             #calculate YOF: Year of enamel formation
+         YOF = YOB + 15,                                             #calculate YOF: Year of enamel formation
          YOF_year = round(YOF)
   )
 
@@ -507,7 +507,7 @@ p1 <- ggplot(p1_data,
   guides(fill = "none",
          color = "none"
          ) +
-  coord_cartesian(ylim = c(-16, -3)) +
+  coord_cartesian(ylim = c(-15, -5)) +
   present_theme
 
 p1
@@ -788,6 +788,17 @@ p2b <- ggplot() +
                      maxwidth = 1.5,
                      seed = 42
                      ) +
+  geom_boxplot(data = p2b_data,             #individual participants
+               aes(x = YOF_5yr,
+                   y = mean_d13C,
+                   group = YOF_5yr),  
+               width = 1,
+               outlier.shape = NA,
+               fill = "white",
+               color = "grey20",
+               linewidth = 0.55,
+               alpha = 0.5
+  ) +
   scale_x_continuous(
     breaks = sort(unique(p2b_data$YOF_5yr)),
     labels = sort(unique(p2b_data$YOF_5yr))
@@ -813,7 +824,7 @@ p2b <- ggplot() +
        x = "\nEstimated year of enamel formation",
        y = expression(delta^{13}*C~("\u2030"))
        ) +
-  coord_cartesian(ylim = c(-16, -3)) +
+  coord_cartesian(ylim = c(-15, -5)) +
   present_theme
 
 p2b
@@ -942,7 +953,7 @@ p3 <- ggplot(p3_data,
   guides(fill = "none",
          color = "none"
          ) +
-  coord_cartesian(ylim = c(-16, -3)) +
+  coord_cartesian(ylim = c(-12, -5)) +
   present_theme
 
 
@@ -951,6 +962,82 @@ p3
 #save p3
 ggsave(filename = file.path("outputs", "p3_present.png"),
        plot = p3,
+       width = 10,
+       height = 6,
+       units = "in",
+       dpi = 300
+)
+
+#plot 3b - subset, add corn consumption
+#p3b data
+p3b_data <- present_pid %>%
+  filter(!is.na(YOF_year),
+         !is.na(mean_d13C_corrected),
+         YOF_year > 1983) %>%
+  mutate(YOF_5yr = floor(YOF_year / 5) * 5)
+
+#summary stats for 5-year YOF groups
+p3b_summary <- p3b_data %>%
+  group_by(YOF_5yr) %>%
+  summarise(n_participants = n(),
+            mean_d13C_corrected_group = mean(mean_d13C_corrected, na.rm = TRUE),
+            .groups = "drop"
+  )
+
+# Corn trend
+cus = read.csv("outputs/usda_ers_corn_selected_food_industrial_uses_per_capita.csv")
+cus$total.scale = cus$high_fructose_corn_syrup_million_bushels_per_capita_bushels * 
+  2 - 11.5 
+
+p3b <- ggplot(p3_data,
+             aes(x = YOF_year,
+                 y = mean_d13C_corrected)
+             ) +
+  geom_line(data = cus,             #suess curve d13C
+            aes(x = Year,
+                y = total.scale),
+            linewidth = 3,
+            color = "grey40"
+  ) +
+  geom_boxplot(data = p3b_data,             #individual participants
+               aes(x = YOF_5yr,
+                   y = mean_d13C_corrected,
+                   group = YOF_5yr),  
+               width = 1,
+               outlier.shape = NA,
+               fill = "white",
+               color = "grey20",
+               linewidth = 0.55,
+               alpha = 0.5
+  ) +
+  scale_x_continuous(
+    breaks = sort(unique(p3b_data$YOF_5yr)),
+    labels = sort(unique(p3b_data$YOF_5yr))
+  ) +
+  scale_y_continuous(
+    sec.axis = sec_axis(~ (. + 11.5) / 2, 
+             name = "High fructose corn syrup consumption\n(barrels/person/year)")
+  ) +
+  scale_color_manual(name = NULL,
+                     values = c("Individual participant" = "turquoise4")
+  ) +
+  labs(title = "\nSuess-Corrected Enamel δ¹³C & Corn Food Consumption\n ",
+       x = "\nEstimated year of enamel formation",
+       y = expression(delta^{13}*C[enamel-corrected]~("\u2030"))
+  ) +
+  guides(fill = "none",
+         color = "none"
+  ) +
+  coord_cartesian(ylim = c(-9.5, -7),
+                  xlim = c(1988, 2017)) +
+  present_theme
+
+
+p3b
+
+#save p3b
+ggsave(filename = file.path("outputs", "p3b_present.png"),
+       plot = p3b,
        width = 10,
        height = 6,
        units = "in",
@@ -967,7 +1054,6 @@ p4_data <- present_pid %>%
          !is.na(child_ecostatus)
          )
 
-
 #Kruskal-Wallis
 p4_kw <- kruskal.test(mean_d13C_corrected ~ child_ecostatus,
                       data = p4_data
@@ -975,6 +1061,14 @@ p4_kw <- kruskal.test(mean_d13C_corrected ~ child_ecostatus,
 
 p4_kw
 
+p4_data.sub = p4_data[p4_data$child_ecostatus != "Upper",]
+
+#Kruskal-Wallis
+p4_kw.sub <- kruskal.test(mean_d13C_corrected ~ child_ecostatus,
+                      data = p4_data.sub
+)
+
+p4_kw.sub
 
 p4_pval <- p4_kw$p.value
 
@@ -1724,6 +1818,9 @@ ggsave(filename = file.path("outputs", "p8_present.png"),
        dpi = 300
 )
 
+# Fast food map
+
+source("scripts/dietdisparities_fast_food_entries_2010_2016_p8_masked_state_map_v2.R")
 
 
 
